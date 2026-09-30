@@ -33,6 +33,7 @@ kb -XPOST $KB/api/alerting/rule/app-error-spike -d '{
   },
   "actions": [{
     "group": "query matched",
+    "frequency": { "summary": false, "notify_when": "onActionGroupChange", "throttle": null },
     "id": "6f1c2a3e-8b4d-4e6a-9c1f-2d7b5a9e0c11",
     "params": { "documents": [{ "rule": "{{rule.name}}", "matches": "{{context.hits.length}}", "at": "{{date}}" }] }
   }]
