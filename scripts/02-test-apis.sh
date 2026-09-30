@@ -44,7 +44,7 @@ check "http input accepts event" \
   "$(curl -sS -o /dev/null -w '%{http_code}' -u ingest:$LS_HTTP_PASSWORD -XPOST localhost:8080 -H 'Content-Type: application/json' -d "{\"msg\":\"$MARK\",\"level\":\"INFO\"}")" '200'
 echo "  ...waiting for event to reach Elasticsearch"; sleep 8
 check "event searchable in logs-test-prod" \
-  "$(es "$ES/logs-test-prod/_search" -d "{\"query\":{\"match_phrase\":{\"message\":\"$MARK\"}}}")" '"value":1'
+  "$(es "$ES/logs-test-prod/_search" -d "{\"query\":{\"match_phrase\":{\"msg\":\"$MARK\"}}}")" '"value":1'
 
 echo "== Kibana"
 check "status"               "$(kb $KB/api/status)" '"level":"available"'
