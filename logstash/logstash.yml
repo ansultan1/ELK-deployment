@@ -1,0 +1,9 @@
+http.host: 0.0.0.0
+api.http.port: 9600
+pipeline.workers: 2
+pipeline.batch.size: 250
+queue.type: persisted          # disk-backed queue survives restarts / ES outages
+queue.max_bytes: 2gb
+log.level: info
+# Monitoring is collected by Metricbeat (logstash-xpack module), not the legacy internal shipper.
+xpack.monitoring.enabled: false

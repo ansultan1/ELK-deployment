@@ -1,0 +1,19 @@
+<component name="InspectionProjectProfileManager">
+  <profile version="1.0">
+    <option name="myName" value="Project Default" />
+    <inspection_tool class="Eslint" enabled="true" level="WARNING" enabled_by_default="true" />
+    <inspection_tool class="PyPackageRequirementsInspection" enabled="true" level="WARNING" enabled_by_default="true">
+      <option name="ignoredPackages">
+        <list>
+          <option value="requests" />
+          <option value="psutil" />
+          <option value="pyyaml" />
+          <option value="click" />
+          <option value="schedule" />
+          <option value="ibm-cos-sdk" />
+          <option value="cryptography" />
+        </list>
+      </option>
+    </inspection_tool>
+  </profile>
+</component>

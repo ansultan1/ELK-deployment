@@ -1,0 +1,183 @@
+name: elk
+
+x-beat-common: &beat-common
+  restart: unless-stopped
+  user: root
+  logging:
+    driver: json-file
+    options: { max-size: "20m", max-file: "3" }
+
+services:
+  # ---------------------------------------------------------------- TLS certs
+  certs:
+    image: docker.elastic.co/elasticsearch/elasticsearch:${STACK_VERSION}
+    user: "0"
+    environment:
+      VSI_IP: ${VSI_IP}
+    volumes:
+      - ./certs:/certs
+      - ./setup/certs.sh:/certs.sh:ro
+    entrypoint: ["bash", "/certs.sh"]
+
+  # ------------------------------------------------------------ Elasticsearch
+  es01:
+    image: docker.elastic.co/elasticsearch/elasticsearch:${STACK_VERSION}
+    restart: unless-stopped
+    depends_on:
+      certs: { condition: service_completed_successfully }
+    environment:
+      - node.name=es01
+      - cluster.name=elk-prod
+      - discovery.type=single-node
+      - bootstrap.memory_lock=true
+      - ELASTIC_PASSWORD=${ELASTIC_PASSWORD}
+      - ES_JAVA_OPTS=-Xms${ES_HEAP} -Xmx${ES_HEAP}
+      - path.repo=/usr/share/elasticsearch/backups
+      - xpack.security.enabled=true
+      - xpack.security.http.ssl.enabled=true
+      - xpack.security.http.ssl.key=certs/es01/es01.key
+      - xpack.security.http.ssl.certificate=certs/es01/es01.crt
+      - xpack.security.http.ssl.certificate_authorities=certs/ca/ca.crt
+      - xpack.security.transport.ssl.enabled=true
+      - xpack.security.transport.ssl.key=certs/es01/es01.key
+      - xpack.security.transport.ssl.certificate=certs/es01/es01.crt
+      - xpack.security.transport.ssl.certificate_authorities=certs/ca/ca.crt
+      - xpack.security.transport.ssl.verification_mode=certificate
+    ulimits:
+      memlock: { soft: -1, hard: -1 }
+      nofile: { soft: 65535, hard: 65535 }
+    volumes:
+      - ./certs:/usr/share/elasticsearch/config/certs:ro
+      - ${DATA_DIR}/es:/usr/share/elasticsearch/data
+      - ${DATA_DIR}/backups:/usr/share/elasticsearch/backups
+    ports:
+      - "${ES_BIND}:9200:9200"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -s --cacert config/certs/ca/ca.crt -u elastic:${ELASTIC_PASSWORD} https://localhost:9200/_cluster/health | grep -Eq '\"status\":\"(green|yellow)\"'"]
+      interval: 10s
+      timeout: 10s
+      retries: 30
+    logging:
+      driver: json-file
+      options: { max-size: "50m", max-file: "5" }
+
+  # One-shot: passwords, roles, users, ILM, snapshot repo
+  init:
+    image: docker.elastic.co/elasticsearch/elasticsearch:${STACK_VERSION}
+    depends_on:
+      es01: { condition: service_healthy }
+    env_file: .env
+    volumes:
+      - ./certs:/certs:ro
+      - ./setup/init.sh:/init.sh:ro
+    entrypoint: ["bash", "/init.sh"]
+
+  # ------------------------------------------------------------------ Kibana
+  kibana:
+    image: docker.elastic.co/kibana/kibana:${STACK_VERSION}
+    restart: unless-stopped
+    depends_on:
+      init: { condition: service_completed_successfully }
+    env_file: .env
+    volumes:
+      - ./kibana/kibana.yml:/usr/share/kibana/config/kibana.yml:ro
+      - ./certs:/usr/share/kibana/config/certs:ro
+      - ${DATA_DIR}/kibana:/usr/share/kibana/data
+    ports:
+      - "${KIBANA_BIND}:5601:5601"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sk https://localhost:5601/api/status | grep -q '\"level\":\"available\"'"]
+      interval: 15s
+      timeout: 10s
+      retries: 30
+    logging:
+      driver: json-file
+      options: { max-size: "20m", max-file: "3" }
+
+  # ---------------------------------------------------------------- Logstash
+  logstash:
+    image: docker.elastic.co/logstash/logstash:${STACK_VERSION}
+    restart: unless-stopped
+    depends_on:
+      init: { condition: service_completed_successfully }
+    env_file: .env
+    environment:
+      - LS_JAVA_OPTS=-Xms${LS_HEAP} -Xmx${LS_HEAP}
+    volumes:
+      - ./logstash/logstash.yml:/usr/share/logstash/config/logstash.yml:ro
+      - ./logstash/pipeline:/usr/share/logstash/pipeline:ro
+      - ./certs:/usr/share/logstash/certs:ro
+      - ${DATA_DIR}/logstash:/usr/share/logstash/data
+    ports:
+      - "127.0.0.1:9600:9600"   # monitoring API
+      - "127.0.0.1:8080:8080"   # http input (test ingestion)
+    logging:
+      driver: json-file
+      options: { max-size: "20m", max-file: "3" }
+
+  # ------------------------------------------------------------------ Beats
+  filebeat:
+    <<: *beat-common
+    image: docker.elastic.co/beats/filebeat:${STACK_VERSION}
+    depends_on: [logstash]
+    command: ["filebeat", "-e", "--strict.perms=false"]
+    volumes:
+      - ./filebeat/filebeat.yml:/usr/share/filebeat/filebeat.yml:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - filebeat-data:/usr/share/filebeat/data
+
+  metricbeat:
+    <<: *beat-common
+    image: docker.elastic.co/beats/metricbeat:${STACK_VERSION}
+    hostname: ${VSI_HOSTNAME}
+    depends_on:
+      init: { condition: service_completed_successfully }
+    env_file: .env
+    command: ["metricbeat", "-e", "--strict.perms=false", "-system.hostfs=/hostfs"]
+    volumes:
+      - ./metricbeat/metricbeat.yml:/usr/share/metricbeat/metricbeat.yml:ro
+      - ./certs:/certs:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /proc:/hostfs/proc:ro
+      - /sys/fs/cgroup:/hostfs/sys/fs/cgroup:ro
+      - /:/hostfs:ro
+      - metricbeat-data:/usr/share/metricbeat/data
+
+  heartbeat:
+    <<: *beat-common
+    image: docker.elastic.co/beats/heartbeat:${STACK_VERSION}
+    depends_on:
+      init: { condition: service_completed_successfully }
+    env_file: .env
+    command: ["heartbeat", "-e", "--strict.perms=false"]
+    volumes:
+      - ./heartbeat/heartbeat.yml:/usr/share/heartbeat/heartbeat.yml:ro
+      - ./certs:/certs:ro
+
+  # ------------------------------------------------- Sample monitored workload
+  sample-app:
+    build: ./app
+    container_name: sample-app
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "3" }
+
+  traffic:
+    image: curlimages/curl:8.10.1
+    restart: unless-stopped
+    depends_on: [sample-app]
+    entrypoint: ["sh", "-c"]
+    command:
+      - |
+        while true; do
+          for p in / /order /order /order /slow /error /health; do
+            curl -s -o /dev/null "http://sample-app:5000$$p"
+            sleep 1
+          done
+        done
+
+volumes:
+  filebeat-data:
+  metricbeat-data:

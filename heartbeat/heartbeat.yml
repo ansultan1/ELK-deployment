@@ -1,0 +1,40 @@
+heartbeat.monitors:
+  - type: http
+    id: sample-app-health
+    name: Sample app /health
+    schedule: '@every 10s'
+    urls: ["http://sample-app:5000/health"]
+    check.response.status: [200]
+
+  - type: http
+    id: elasticsearch
+    name: Elasticsearch
+    schedule: '@every 30s'
+    urls: ["https://es01:9200"]
+    username: beats_internal
+    password: "${BEATS_PASSWORD}"
+    ssl.certificate_authorities: ["/certs/ca/ca.crt"]
+    check.response.status: [200]
+
+  - type: http
+    id: kibana
+    name: Kibana
+    schedule: '@every 30s'
+    urls: ["https://kibana:5601/api/status"]
+    ssl.certificate_authorities: ["/certs/ca/ca.crt"]
+    check.response.status: [200]
+
+  - type: tcp
+    id: logstash-beats
+    name: Logstash beats input
+    schedule: '@every 30s'
+    hosts: ["logstash:5044"]
+
+output.elasticsearch:
+  hosts: ["https://es01:9200"]
+  username: beats_internal
+  password: "${BEATS_PASSWORD}"
+  ssl.certificate_authorities: ["/certs/ca/ca.crt"]
+
+logging.level: info
+logging.to_files: false

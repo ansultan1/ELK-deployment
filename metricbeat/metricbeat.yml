@@ -1,0 +1,50 @@
+metricbeat.modules:
+  # Host (the VSI itself)
+  - module: system
+    period: 10s
+    metricsets: [cpu, load, memory, network, process, process_summary, socket_summary, filesystem, fsstat, uptime]
+    processes: ['.*']
+    process.include_top_n: { by_cpu: 5, by_memory: 5 }
+    hostfs: /hostfs
+    filesystem.ignore_types: [nfs, smbfs, autofs, tmpfs, overlay]
+
+  # Containers
+  - module: docker
+    period: 10s
+    hosts: ["unix:///var/run/docker.sock"]
+    metricsets: [container, cpu, diskio, info, memory, network, healthcheck]
+
+  # The stack monitors itself (feeds Kibana "Stack Monitoring")
+  - module: elasticsearch
+    xpack.enabled: true
+    period: 10s
+    hosts: ["https://es01:9200"]
+    username: beats_internal
+    password: "${BEATS_PASSWORD}"
+    ssl.certificate_authorities: ["/certs/ca/ca.crt"]
+
+  - module: kibana
+    xpack.enabled: true
+    period: 10s
+    hosts: ["https://kibana:5601"]
+    username: beats_internal
+    password: "${BEATS_PASSWORD}"
+    ssl.certificate_authorities: ["/certs/ca/ca.crt"]
+
+  - module: logstash
+    xpack.enabled: true
+    period: 10s
+    hosts: ["logstash:9600"]
+
+processors:
+  - add_host_metadata: ~
+  - add_docker_metadata: ~
+
+output.elasticsearch:
+  hosts: ["https://es01:9200"]
+  username: beats_internal
+  password: "${BEATS_PASSWORD}"
+  ssl.certificate_authorities: ["/certs/ca/ca.crt"]
+
+logging.level: info
+logging.to_files: false

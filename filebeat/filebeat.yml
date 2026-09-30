@@ -1,0 +1,18 @@
+filebeat.inputs:
+  - type: filestream
+    id: docker-containers
+    paths:
+      - /var/lib/docker/containers/*/*.log
+    parsers:
+      - container: ~
+
+processors:
+  - add_docker_metadata: ~
+  - add_host_metadata: ~
+
+# Container, image and host metadata arrive on every event; Logstash does parsing/routing.
+output.logstash:
+  hosts: ["logstash:5044"]
+
+logging.level: info
+logging.to_files: false
