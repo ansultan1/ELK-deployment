@@ -11,7 +11,8 @@ kb -XPOST $KB/api/data_views/data_view -d '{"data_view":{"id":"app-logs","name":
 kb -XPOST $KB/api/data_views/data_view -d '{"data_view":{"id":"all-logs","name":"All logs","title":"logs-*","timeFieldName":"@timestamp"}}'
 
 echo "== connector: write alerts into an index (swap for email/Slack/PagerDuty in real use)"
-kb -XPOST $KB/api/actions/connector/app-errors-index -d '{"name":"app-errors-index","connector_type_id":".index","config":{"index":"alerts-app-errors","refresh":true}}'
+CONN_ID=6f1c2a3e-8b4d-4e6a-9c1f-2d7b5a9e0c11   # Kibana requires UUID ids for connectors
+kb -XPOST $KB/api/actions/connector/$CONN_ID -d '{"name":"app-errors-index","connector_type_id":".index","config":{"index":"alerts-app-errors","refresh":true}}'
 
 echo "== rule: >5 ERROR logs from sample-app in 5 minutes"
 kb -XPOST $KB/api/alerting/rule/app-error-spike -d '{
@@ -32,7 +33,7 @@ kb -XPOST $KB/api/alerting/rule/app-error-spike -d '{
   },
   "actions": [{
     "group": "query matched",
-    "id": "app-errors-index",
+    "id": "6f1c2a3e-8b4d-4e6a-9c1f-2d7b5a9e0c11",
     "params": { "documents": [{ "rule": "{{rule.name}}", "matches": "{{context.hits.length}}", "at": "{{date}}" }] }
   }]
 }'

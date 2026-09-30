@@ -32,8 +32,8 @@ check "delete document"      "$(es -XDELETE "$ES/api-test/_doc/1")" '"result":"d
 check "delete index"         "$(es -XDELETE $ES/api-test)" '"acknowledged":true'
 check "ILM policy present"   "$(es $ES/_ilm/policy/logs-30d)" 'logs-30d'
 check "snapshot repo present" "$(es $ES/_snapshot/local_backup)" 'local_backup'
-check "least-priv user can't read cluster settings" \
-  "$(curl -sS --cacert $CA -u logstash_internal:$LOGSTASH_PASSWORD $ES/_cluster/settings)" 'security_exception'
+check "least-priv user can't list users" \
+  "$(curl -sS --cacert $CA -u logstash_internal:$LOGSTASH_PASSWORD $ES/_security/user)" 'security_exception'
 
 echo "== Logstash"
 check "node API"             "$(curl -sS $LS/)" '"status"'
