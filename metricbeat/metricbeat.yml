@@ -60,3 +60,5 @@ output.elasticsearch:
 
 logging.level: info
 logging.to_files: false
+# TEMP: print rejected events and Elasticsearch's reason (status=400) to stderr; remove once fixed
+logging.event_data.to_stderr: true
