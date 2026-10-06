@@ -130,7 +130,10 @@ services:
   metricbeat:
     <<: *beat-common
     image: docker.elastic.co/beats/metricbeat:${STACK_VERSION}
-    hostname: ${VSI_HOSTNAME}
+    # Host networking + host PID namespace: host.name/ip/mac and processes are the VSI's own.
+    # The stack is therefore reached via the published loopback ports, not Docker service names.
+    network_mode: host
+    pid: host
     depends_on:
       init: { condition: service_completed_successfully }
     env_file: .env
@@ -142,6 +145,7 @@ services:
       - /proc:/hostfs/proc:ro
       - /sys/fs/cgroup:/hostfs/sys/fs/cgroup:ro
       - /:/hostfs:ro
+      - /etc/os-release:/etc/os-release:ro   # host.os.* must describe the VSI, not the beat image
       - metricbeat-data:/usr/share/metricbeat/data
 
   heartbeat:
