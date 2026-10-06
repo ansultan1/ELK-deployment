@@ -7,12 +7,24 @@ metricbeat.modules:
     process.include_top_n: { by_cpu: 5, by_memory: 5 }
     hostfs: /hostfs
     filesystem.ignore_types: [nfs, smbfs, autofs, tmpfs, overlay]
+    processors:
+      - add_host_metadata: ~   # host.* only describes the VSI for host-level metrics
 
   # Containers
   - module: docker
     period: 10s
     hosts: ["unix:///var/run/docker.sock"]
     metricsets: [container, cpu, diskio, info, memory, network, healthcheck]
+    processors:
+      # Identify the monitored container, not the VSI metricbeat runs on
+      - drop_fields:
+          fields: [host]
+          ignore_missing: true
+      - copy_fields:
+          fields:
+            - { from: container.name, to: host.name }
+          fail_on_error: false
+          ignore_missing: true
 
   # The stack monitors itself (feeds Kibana "Stack Monitoring")
   - module: elasticsearch
@@ -36,8 +48,8 @@ metricbeat.modules:
     period: 10s
     hosts: ["logstash:9600"]
 
+# No global add_host_metadata: it stamped the VSI's host.* onto every event (docker, stack modules)
 processors:
-  - add_host_metadata: ~
   - add_docker_metadata: ~
 
 output.elasticsearch:
