@@ -7,8 +7,6 @@ metricbeat.modules:
     process.include_top_n: { by_cpu: 5, by_memory: 5 }
     hostfs: /hostfs
     filesystem.ignore_types: [nfs, smbfs, autofs, tmpfs, overlay]
-    processors:
-      - add_host_metadata: ~   # host.* only describes the VSI for host-level metrics
 
   # Containers
   - module: docker
@@ -16,9 +14,8 @@ metricbeat.modules:
     hosts: ["unix:///var/run/docker.sock"]
     metricsets: [container, cpu, diskio, info, memory, network, healthcheck]
     processors:
-      # Container events are identified by container.*, not host.*
       - drop_fields:
-          fields: [host, docker.container.labels]   # labels: one mapped field each -> blew the 10000 field limit
+          fields: [docker.container.labels]   # labels: one mapped field each -> blew the 10000 field limit
           ignore_missing: true
 
   # The stack monitors itself (feeds Kibana "Stack Monitoring")
@@ -43,8 +40,10 @@ metricbeat.modules:
     period: 10s
     hosts: ["localhost:9600"]
 
-# No global add_host_metadata: it stamped the VSI's host.* onto every event (docker, stack modules)
+# Host networking + mounted /etc/os-release make host.* the VSI's real info, so it is safe on every
+# event. Without it, events carry only a bare host.name and Inventory's host panel loses IP/OS.
 processors:
+  - add_host_metadata: ~
   - add_docker_metadata: ~
   - drop_fields:
       fields: [container.labels, docker.container.labels]
