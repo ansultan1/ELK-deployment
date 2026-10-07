@@ -111,6 +111,7 @@ services:
     ports:
       - "127.0.0.1:9600:9600"   # monitoring API
       - "127.0.0.1:8080:8080"   # http input (test ingestion)
+      - "127.0.0.1:5044:5044"   # beats input: Filebeat runs on the host network, so it reaches Logstash here
     logging:
       driver: json-file
       options: { max-size: "20m", max-file: "3" }
@@ -119,12 +120,16 @@ services:
   filebeat:
     <<: *beat-common
     image: docker.elastic.co/beats/filebeat:${STACK_VERSION}
+    # Host networking, like Metricbeat: host.name/ip/mac are then the VSI's own, not the container's.
+    # The stack is reached via the published loopback port (localhost:5044), not the Docker service name.
+    network_mode: host
     depends_on: [logstash]
     command: ["filebeat", "-e", "--strict.perms=false"]
     volumes:
       - ./filebeat/filebeat.yml:/usr/share/filebeat/filebeat.yml:ro
       - /var/lib/docker/containers:/var/lib/docker/containers:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /etc/os-release:/etc/os-release:ro   # host.os.* must describe the VSI, not the beat image
       - filebeat-data:/usr/share/filebeat/data
 
   metricbeat:

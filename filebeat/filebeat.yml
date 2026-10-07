@@ -12,7 +12,7 @@ processors:
 
 # Container, image and host metadata arrive on every event; Logstash does parsing/routing.
 output.logstash:
-  hosts: ["logstash:5044"]
+  hosts: ["localhost:5044"]
 
 logging.level: info
 logging.to_files: false
