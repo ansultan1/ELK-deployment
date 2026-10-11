@@ -21,11 +21,18 @@ LS_HEAP=1g
 # ES + Logstash stay on loopback (use SSH tunnel or security-group rules). Kibana is the public UI.
 ES_BIND=127.0.0.1
 KIBANA_BIND=0.0.0.0
+# Remote test targets: set these to 0.0.0.0 and allow ONLY the target VM's IP in the security group
+LS_BEATS_BIND=127.0.0.1
+APM_BIND=127.0.0.1
 
 ELASTIC_PASSWORD=$(rnd)
 KIBANA_PASSWORD=$(rnd)
 LOGSTASH_PASSWORD=$(rnd)
 BEATS_PASSWORD=$(rnd)
+APM_PASSWORD=$(rnd)
+APM_SECRET_TOKEN=$(rnd)
+RCA_PASSWORD=$(rnd)
+AIOPS_PASSWORD=$(rnd)
 LS_HTTP_PASSWORD=$(rnd)
 KIBANA_ENC_KEY_1=$(openssl rand -hex 16)
 KIBANA_ENC_KEY_2=$(openssl rand -hex 16)

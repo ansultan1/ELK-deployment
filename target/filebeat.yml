@@ -1,0 +1,24 @@
+# Container logs of everything on this VM -> Logstash (TLS + client cert)
+filebeat.inputs:
+  - type: filestream
+    id: docker-containers
+    paths:
+      - /var/lib/docker/containers/*/*.log
+    parsers:
+      - container: ~
+
+processors:
+  - add_docker_metadata: ~
+  - add_host_metadata: ~
+
+fields:
+  environment: ${ENVIRONMENT}
+
+output.logstash:
+  hosts: ["${ELK_HOST}:5044"]
+  ssl.certificate_authorities: ["/certs/ca/ca.crt"]
+  ssl.certificate: /certs/beat-client/beat-client.crt
+  ssl.key: /certs/beat-client/beat-client.key
+
+logging.level: info
+logging.to_files: false

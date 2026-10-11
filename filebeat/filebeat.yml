@@ -11,8 +11,15 @@ processors:
   - add_host_metadata: ~
 
 # Container, image and host metadata arrive on every event; Logstash does parsing/routing.
+fields:
+  environment: elk-vsi
+
+# TLS + client cert (see certs/beat-client); the cert SAN includes localhost
 output.logstash:
   hosts: ["localhost:5044"]
+  ssl.certificate_authorities: ["/certs/ca/ca.crt"]
+  ssl.certificate: /certs/beat-client/beat-client.crt
+  ssl.key: /certs/beat-client/beat-client.key
 
 logging.level: info
 logging.to_files: false

@@ -1,0 +1,19 @@
+apm-server:
+  host: "0.0.0.0:8200"
+  auth:
+    secret_token: "${APM_SECRET_TOKEN}"
+  ssl:
+    enabled: true
+    certificate: /certs/apm-server/apm-server.crt
+    key: /certs/apm-server/apm-server.key
+  # Standalone APM Server: ES 8.12+ ships the apm-data templates, so don't wait for the Fleet integration
+  data_streams.wait_for_integration: false
+
+output.elasticsearch:
+  hosts: ["https://es01:9200"]
+  username: apm_internal
+  password: "${APM_PASSWORD}"
+  ssl.certificate_authorities: ["/certs/ca/ca.crt"]
+
+logging.level: info
+logging.to_stderr: true

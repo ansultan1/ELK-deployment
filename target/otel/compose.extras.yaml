@@ -1,0 +1,8 @@
+# Replaces the demo's (empty) compose.extras.yaml: gives the collector the ELK address, token and CA.
+services:
+  otel-collector:
+    environment:
+      - ELK_HOST
+      - APM_SECRET_TOKEN
+    volumes:
+      - ${ELK_CA_FILE}:/etc/elk-ca.crt:ro

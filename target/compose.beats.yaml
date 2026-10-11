@@ -1,0 +1,42 @@
+name: otel-beats
+
+x-beat-common: &beat-common
+  restart: unless-stopped
+  user: root
+  network_mode: host      # host.name / host.ip are the VM's own
+  env_file: .env
+  logging:
+    driver: json-file
+    options: { max-size: "20m", max-file: "3" }
+
+services:
+  filebeat:
+    <<: *beat-common
+    image: docker.elastic.co/beats/filebeat:${STACK_VERSION}
+    command: ["filebeat", "-e", "--strict.perms=false"]
+    volumes:
+      - ./filebeat.yml:/usr/share/filebeat/filebeat.yml:ro
+      - ./certs:/certs:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /etc/os-release:/etc/os-release:ro
+      - filebeat-data:/usr/share/filebeat/data
+
+  metricbeat:
+    <<: *beat-common
+    image: docker.elastic.co/beats/metricbeat:${STACK_VERSION}
+    pid: host
+    command: ["metricbeat", "-e", "--strict.perms=false", "-system.hostfs=/hostfs"]
+    volumes:
+      - ./metricbeat.yml:/usr/share/metricbeat/metricbeat.yml:ro
+      - ./certs:/certs:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /proc:/hostfs/proc:ro
+      - /sys/fs/cgroup:/hostfs/sys/fs/cgroup:ro
+      - /:/hostfs:ro
+      - /etc/os-release:/etc/os-release:ro
+      - metricbeat-data:/usr/share/metricbeat/data
+
+volumes:
+  filebeat-data:
+  metricbeat-data:

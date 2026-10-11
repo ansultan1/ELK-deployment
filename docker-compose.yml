@@ -111,7 +111,7 @@ services:
     ports:
       - "127.0.0.1:9600:9600"   # monitoring API
       - "127.0.0.1:8080:8080"   # http input (test ingestion)
-      - "127.0.0.1:5044:5044"   # beats input: Filebeat runs on the host network, so it reaches Logstash here
+      - "${LS_BEATS_BIND:-127.0.0.1}:5044:5044"   # beats input (TLS + client cert). Local Filebeat uses localhost; 0.0.0.0 accepts remote VMs
     logging:
       driver: json-file
       options: { max-size: "20m", max-file: "3" }
@@ -127,6 +127,7 @@ services:
     command: ["filebeat", "-e", "--strict.perms=false"]
     volumes:
       - ./filebeat/filebeat.yml:/usr/share/filebeat/filebeat.yml:ro
+      - ./certs:/certs:ro
       - /var/lib/docker/containers:/var/lib/docker/containers:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - /etc/os-release:/etc/os-release:ro   # host.os.* must describe the VSI, not the beat image
@@ -163,6 +164,24 @@ services:
     volumes:
       - ./heartbeat/heartbeat.yml:/usr/share/heartbeat/heartbeat.yml:ro
       - ./certs:/certs:ro
+
+  # ------------------------------------------------------ APM Server (OTLP traces/logs/metrics)
+  # Receives OpenTelemetry data from remote hosts on :8200 (TLS + secret token).
+  apm-server:
+    image: docker.elastic.co/apm/apm-server:${STACK_VERSION}
+    restart: unless-stopped
+    depends_on:
+      init: { condition: service_completed_successfully }
+    env_file: .env
+    command: ["apm-server", "-e", "--strict.perms=false"]
+    volumes:
+      - ./apm-server/apm-server.yml:/usr/share/apm-server/apm-server.yml:ro
+      - ./certs:/certs:ro
+    ports:
+      - "${APM_BIND:-0.0.0.0}:8200:8200"
+    logging:
+      driver: json-file
+      options: { max-size: "20m", max-file: "3" }
 
   # ------------------------------------------------- Sample monitored workload
   sample-app:

@@ -1,0 +1,110 @@
+[
+  {
+    "id": "payment-failure-100",
+    "title": "Payment service rejects every charge",
+    "category": "app",
+    "fault": { "type": "flag", "flag": "paymentFailure", "variant": "100%" },
+    "expected_root_cause": { "service": "payment", "kind": "application-error", "description": "payment service fails 100% of charge requests (feature flag paymentFailure=100%)" },
+    "expected_impacted": ["checkout", "frontend", "frontend-proxy"],
+    "expected_signals": "payment error spans/logs; checkout PlaceOrder errors; frontend 5xx on /api/checkout; no host or container resource anomaly"
+  },
+  {
+    "id": "payment-unreachable",
+    "title": "Payment service unavailable",
+    "category": "app",
+    "fault": { "type": "flag", "flag": "paymentUnreachable", "variant": "on" },
+    "expected_root_cause": { "service": "payment", "kind": "dependency-unreachable", "description": "checkout cannot reach the payment service (paymentUnreachable=on)" },
+    "expected_impacted": ["checkout", "frontend"],
+    "expected_signals": "connection errors from checkout to payment; checkout latency/timeouts; payment itself healthy"
+  },
+  {
+    "id": "cart-failure-50",
+    "title": "Cart service fails half of requests",
+    "category": "app",
+    "fault": { "type": "flag", "flag": "cartFailure", "variant": "50%" },
+    "expected_root_cause": { "service": "cart", "kind": "application-error", "description": "cart service errors on ~50% of requests (cartFailure=50%)" },
+    "expected_impacted": ["frontend", "checkout"],
+    "expected_signals": "intermittent cart errors; AddItem/GetCart failures; error rate ~50% not 100%"
+  },
+  {
+    "id": "product-catalog-failure",
+    "title": "Product catalog fails on a specific product",
+    "category": "app",
+    "fault": { "type": "flag", "flag": "productCatalogFailure", "variant": "on" },
+    "expected_root_cause": { "service": "product-catalog", "kind": "application-error", "description": "GetProduct fails for one product id (productCatalogFailure=on)" },
+    "expected_impacted": ["frontend", "recommendation", "checkout"],
+    "expected_signals": "errors only for a specific product id; other products fine"
+  },
+  {
+    "id": "recommendation-cache-failure",
+    "title": "Recommendation cache failure",
+    "category": "app",
+    "fault": { "type": "flag", "flag": "recommendationCacheFailure", "variant": "on" },
+    "expected_root_cause": { "service": "recommendation", "kind": "cache-failure", "description": "recommendation service cache misbehaves, causing memory growth and latency (recommendationCacheFailure=on)" },
+    "expected_impacted": ["frontend"],
+    "expected_signals": "recommendation memory/latency increase over time"
+  },
+  {
+    "id": "ad-high-cpu",
+    "title": "Ad service CPU spike",
+    "category": "app",
+    "fault": { "type": "flag", "flag": "adHighCpu", "variant": "on" },
+    "expected_root_cause": { "service": "ad", "kind": "cpu-saturation", "description": "ad service burns CPU (adHighCpu=on)" },
+    "expected_impacted": ["frontend"],
+    "expected_signals": "ad container CPU up; ad GetAds latency up; host CPU up"
+  },
+  {
+    "id": "kafka-queue-lag",
+    "title": "Kafka queue overload with consumer delay",
+    "category": "app",
+    "fault": { "type": "flag", "flag": "kafkaQueueProblems", "variant": "on" },
+    "expected_root_cause": { "service": "kafka", "kind": "queue-lag", "description": "Kafka overloaded while consumers are delayed, causing lag (kafkaQueueProblems=on)" },
+    "expected_impacted": ["accounting", "fraud-detection", "checkout"],
+    "expected_signals": "consumer lag; accounting/fraud-detection processing delay; kafka CPU up"
+  },
+  {
+    "id": "email-memory-leak",
+    "title": "Email service memory leak",
+    "category": "app",
+    "fault": { "type": "flag", "flag": "emailMemoryLeak", "variant": "1000x" },
+    "expected_root_cause": { "service": "email", "kind": "memory-leak", "description": "email service leaks memory (emailMemoryLeak=1000x)" },
+    "expected_impacted": ["checkout"],
+    "expected_signals": "email container memory grows steadily; possible OOM restart"
+  },
+  {
+    "id": "image-slow-load",
+    "title": "Slow image loading",
+    "category": "app",
+    "fault": { "type": "flag", "flag": "imageSlowLoad", "variant": "10sec" },
+    "expected_root_cause": { "service": "image-provider", "kind": "latency", "description": "image provider responds slowly (imageSlowLoad=10sec)" },
+    "expected_impacted": ["frontend"],
+    "expected_signals": "image-provider response time ~10s; frontend page load slow; no errors"
+  },
+  {
+    "id": "currency-down",
+    "title": "Currency container stopped",
+    "category": "infra",
+    "fault": { "type": "stop", "service": "currency" },
+    "expected_root_cause": { "service": "currency", "kind": "container-down", "description": "currency container was stopped (docker stop)" },
+    "expected_impacted": ["frontend", "checkout"],
+    "expected_signals": "container die/stop event; currency metrics disappear; callers get connection refused / unavailable"
+  },
+  {
+    "id": "product-catalog-latency",
+    "title": "Network latency to product-catalog",
+    "category": "infra",
+    "fault": { "type": "netem", "service": "product-catalog", "delay_ms": 800, "jitter_ms": 200 },
+    "expected_root_cause": { "service": "product-catalog", "kind": "network-latency", "description": "800ms +-200ms added on product-catalog's network interface (tc netem)" },
+    "expected_impacted": ["frontend", "recommendation", "checkout"],
+    "expected_signals": "product-catalog server-side spans fast but client spans slow; no errors; no CPU/memory anomaly"
+  },
+  {
+    "id": "noisy-neighbor-cpu",
+    "title": "Host CPU saturated by unrelated container",
+    "category": "infra",
+    "fault": { "type": "cpu_stress" },
+    "expected_root_cause": { "service": "rca-stress", "kind": "noisy-neighbor", "description": "a stress container saturates all host CPUs; every service slows down" },
+    "expected_impacted": ["frontend", "checkout", "cart", "ad", "product-catalog", "recommendation"],
+    "expected_signals": "host CPU ~100%; rca-stress top consumer; latency up across many unrelated services"
+  }
+]

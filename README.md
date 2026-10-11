@@ -193,3 +193,8 @@ app/                      sample monitored service
 scripts/00..03            host prep, secret generation, API tests, Kibana objects
 ```
 Teardown: `docker compose down` (keeps data) · `docker compose down -v && sudo rm -rf /data/elk/* certs` (wipes everything).
+
+## 10. Remote test targets (RCA testing with the OpenTelemetry Demo)
+The stack also accepts logs (Logstash :5044, TLS + client cert), metrics (Elasticsearch :9200) and OTLP traces
+(APM Server :8200) from other VMs. See [`target/README.md`](target/README.md) for setup, the fault-injection
+scenarios and how to give the AIOps MCP a read-only user that cannot see the answer key.

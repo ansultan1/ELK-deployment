@@ -1,0 +1,19 @@
+# Layered over the demo's collector config (src/otel-collector/otelcol-config-extras.yml).
+# Adds the ELK APM Server (OTLP/HTTP, TLS, secret token) as an exporter next to the demo's defaults.
+# Arrays are REPLACED on merge, so the upstream exporters (debug, span_metrics) are repeated.
+exporters:
+  otlp_http/elastic:
+    endpoint: https://${env:ELK_HOST}:8200
+    headers:
+      Authorization: "Bearer ${env:APM_SECRET_TOKEN}"
+    tls:
+      ca_file: /etc/elk-ca.crt
+
+service:
+  pipelines:
+    traces:
+      exporters: [debug, span_metrics, otlp_http/elastic]
+    metrics:
+      exporters: [debug, otlp_http/elastic]
+    logs:
+      exporters: [debug, otlp_http/elastic]

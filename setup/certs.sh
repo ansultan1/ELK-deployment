@@ -24,6 +24,25 @@ EOF
   unzip -q -o "$OUT/certs.zip" -d "$OUT"
 fi
 
+# Remote senders (other VMs): TLS cert for Logstash's beats input and APM Server, plus one client
+# cert that Beats on those VMs present to Logstash (mutual TLS). Generated separately so the
+# existing es01/kibana certs are never replaced.
+if [ ! -f "$OUT/logstash/logstash.crt" ]; then
+  cat > "$OUT/instances-ingest.yml" <<EOF
+instances:
+  - name: logstash
+    dns: [logstash, localhost]
+    ip: [127.0.0.1, ${VSI_IP}]
+  - name: apm-server
+    dns: [apm-server, localhost]
+    ip: [127.0.0.1, ${VSI_IP}]
+  - name: beat-client
+EOF
+  bin/elasticsearch-certutil cert --silent --pem -out "$OUT/ingest.zip" \
+    --in "$OUT/instances-ingest.yml" --ca-cert "$OUT/ca/ca.crt" --ca-key "$OUT/ca/ca.key"
+  unzip -q -o "$OUT/ingest.zip" -d "$OUT"
+fi
+
 # Containers run as uid 1000 / gid 0: keys group-readable, public certs world-readable.
 chown -R 0:0 "$OUT"
 find "$OUT" -type d -exec chmod 755 {} \;

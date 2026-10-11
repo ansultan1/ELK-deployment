@@ -34,6 +34,27 @@ api PUT /_security/role/beats_writer '{
   }]
 }'
 
+# --- RCA test target: APM Server writer, ground-truth writer, read-only role for the AIOps MCP
+api PUT /_security/role/apm_writer '{
+  "cluster": ["monitor"],
+  "indices": [{
+    "names": ["traces-apm*", "metrics-apm*", "logs-apm*"],
+    "privileges": ["auto_configure", "create_doc", "create_index", "view_index_metadata"]
+  }]
+}'
+# Ground truth lives in rca-scenarios. Only the scenario runner may write it; the MCP must NOT read it.
+api PUT /_security/role/rca_writer '{
+  "cluster": ["monitor"],
+  "indices": [{ "names": ["rca-scenarios"], "privileges": ["auto_configure", "create_index", "write", "read"] }]
+}'
+api PUT /_security/role/aiops_reader '{
+  "cluster": ["monitor"],
+  "indices": [{
+    "names": ["logs-*", "metrics-*", "traces-*", "filebeat-*", "metricbeat-*", "heartbeat-*"],
+    "privileges": ["read", "view_index_metadata"]
+  }]
+}'
+
 echo "== users"
 api PUT /_security/user/logstash_internal "{
   \"password\": \"${LOGSTASH_PASSWORD}\", \"roles\": [\"logstash_writer\"],
@@ -45,6 +66,16 @@ api PUT /_security/user/beats_internal "{
   \"password\": \"${BEATS_PASSWORD}\",
   \"roles\": [\"beats_writer\", \"remote_monitoring_collector\", \"remote_monitoring_agent\"],
   \"full_name\": \"Beats writer\"
+}"
+
+api PUT /_security/user/apm_internal "{
+  \"password\": \"${APM_PASSWORD:?missing - run scripts/10-upgrade-env.sh}\", \"roles\": [\"apm_writer\"], \"full_name\": \"APM Server writer\"
+}"
+api PUT /_security/user/rca_internal "{
+  \"password\": \"${RCA_PASSWORD:?missing - run scripts/10-upgrade-env.sh}\", \"roles\": [\"rca_writer\"], \"full_name\": \"RCA scenario runner\"
+}"
+api PUT /_security/user/aiops_mcp "{
+  \"password\": \"${AIOPS_PASSWORD:?missing - run scripts/10-upgrade-env.sh}\", \"roles\": [\"aiops_reader\"], \"full_name\": \"AIOps MCP (read-only)\"
 }"
 
 echo "== ILM: 30-day log lifecycle"

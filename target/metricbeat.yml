@@ -1,0 +1,37 @@
+# Host + container metrics of this VM -> Elasticsearch
+metricbeat.modules:
+  - module: system
+    period: 10s
+    metricsets: [cpu, load, memory, network, process, process_summary, socket_summary, filesystem, fsstat, uptime]
+    processes: ['.*']
+    process.include_top_n: { by_cpu: 5, by_memory: 5 }
+    hostfs: /hostfs
+    filesystem.ignore_types: [nfs, smbfs, autofs, tmpfs, overlay]
+
+  - module: docker
+    period: 10s
+    hosts: ["unix:///var/run/docker.sock"]
+    metricsets: [container, cpu, diskio, info, memory, network, healthcheck]
+
+processors:
+  - add_host_metadata: ~
+  - add_docker_metadata: ~
+  - drop_fields:
+      fields: [container.labels, docker.container.labels]   # avoids the mapped-field explosion
+      ignore_missing: true
+
+fields:
+  environment: ${ENVIRONMENT}
+
+setup.template.overwrite: true
+setup.template.settings:
+  index.mapping.total_fields.limit: 20000
+
+output.elasticsearch:
+  hosts: ["https://${ELK_HOST}:9200"]
+  username: beats_internal
+  password: "${BEATS_PASSWORD}"
+  ssl.certificate_authorities: ["/certs/ca/ca.crt"]
+
+logging.level: info
+logging.to_files: false
