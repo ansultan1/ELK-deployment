@@ -49,4 +49,8 @@ find "$OUT" -type d -exec chmod 755 {} \;
 find "$OUT" -type f -exec chmod 640 {} \;
 find "$OUT" -name '*.crt' -exec chmod 644 {} \;
 chmod 600 "$OUT/ca/ca.key"
+# Logstash and APM Server run as uid 1000 and read their own private key
+for k in logstash/logstash.key apm-server/apm-server.key; do
+  [ -f "$OUT/$k" ] && chown 1000:0 "$OUT/$k"
+done
 echo "certs ready"
